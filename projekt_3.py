@@ -100,6 +100,7 @@ def main(region_link, output):
             all_data.append(municipality_data)
 
     df = pd.DataFrame(all_data)
+    print(df.head())
     df.to_csv(output, index=False)
     print(f" Data uložena do souboru: {output}")
 
