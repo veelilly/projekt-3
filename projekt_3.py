@@ -30,7 +30,7 @@ import sys
 
     return region_links """
 
-# Najdeme všechny odkazy na okrsky pomoxí X ve sloupci Výběr okrsku
+# Najdeme všechny odkazy na okrsky pomocí čísla obce
 
 def get_municipality_links(link):
     response = requests.get(link)
@@ -41,12 +41,11 @@ def get_municipality_links(link):
     for row in rows:
         code_element = row.find("td", class_="cislo")
         name_element = row.find("td", class_="overflow_name")
-        x = row.find("td", class_="center")
 
-        if code_element and name_element and x and x.a:
+        if code_element and name_element and code_element.a:
             code = code_element.text.strip()
             name = name_element.text.strip()
-            municipality_link = "https://www.volby.cz/pls/ps2017nss/" + x.a["href"]
+            municipality_link = "https://www.volby.cz/pls/ps2017nss/" + code_element.a["href"]
             municipality_data.append((code, name, municipality_link))
 
     print(f"Nalezeno {len(municipality_data)} obcí:")
