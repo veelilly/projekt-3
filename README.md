@@ -46,10 +46,9 @@ python3 projekt_3.py "https://www.volby.cz/pls/ps2017nss/ps32?xjazyk=CZ&xkraj=5&
 **Struktura kódu**
 - Program je rozdělen do několika funkcí:
 
-1. **get_region_links(link):** _Získá odkazy na všechny kraje z hlavní stránky._
-2. **get_municipality_links(region_link):** _Získá odkazy na všechny obce v daném kraji._
-3. **get_data(municipality_link):** _Získá volební výsledky pro jednotlivou obec._
-4. **main(region_link, output):** _Řídí celý proces scrappingu a ukládání dat._
+1. **get_municipality_links(region_link):** _Získá odkazy na všechny obce v daném kraji._
+2. **get_data(municipality_link):** _Získá volební výsledky pro jednotlivou obec._
+3. **main(region_link, output):** _Řídí celý proces scrappingu a ukládání dat._
 
 ### Vysvětlení
 - README obsahuje všechny základní informace o projektu, včetně účelu, požadavků, instalace, použití a struktury kódu.
