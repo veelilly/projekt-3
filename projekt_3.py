@@ -12,10 +12,10 @@ from bs4 import BeautifulSoup
 import pandas as pd
 import sys
 
-"""
+
 # Najdeme odkazy na všechny kraje
 
-def get_region_links(link):
+""" def get_region_links(link):
     response = get(link) # Získání zdrojového kódu
     divided_html = BeautifulSoup(response.text, "html.parser") # Rozdělení zdrojového kódu
     region_links = []
@@ -28,95 +28,108 @@ def get_region_links(link):
     
     print(f"Nalezeno {len(region_links)} odkazů na kraje.")
 
-    return region_links
+    return region_links """
 
-link = "https://www.volby.cz/pls/ps2017nss/ps3?xjazyk=CZ"
-region_links = get_region_links(link)
-print(f"Nalezeno {len(region_links)} odkazů na kraje.")
-for region_link in region_links:
-    print(region_link)
-"""
+# Najdeme všechny odkazy na okrsky pomoxí X ve sloupci Výběr okrsku
 
-# Najdeme všechny odkazy na obce pomoxí X ve sloupci Výběr okrsku
-
-def get_municipality_links(region_link):
-    response = requests.get(region_link)
+def get_municipality_links(link):
+    response = requests.get(link)
     divided_html = BeautifulSoup(response.text, "html.parser")
-    municipality_links = []
+    municipality_data = []
 
-    td_tags = divided_html.find("td", {"class": "center", "headers": "t1sa2"})
-    for td_tag in td_tags:
-        a_tag= td_tag.find("a", href=True)
-        if a_tag:
-            municipality_links.append("https://www.volby.cz/pls/ps2017nss/" + a_tag['href'])
-    
-    print(f"Nalezeno {len(municipality_links)} obcí v kraji {region_link}:")
-    return municipality_links
+    rows = divided_html.find_all("tr")[2:] # první dva řádky jsou hlavičky
+    for row in rows:
+        code_element = row.find("td", class_="cislo")
+        name_element = row.find("td", class_="overflow_name")
+        x = row.find("td", class_="center")
+
+        if code_element and name_element and x and x.a:
+            code = code_element.text.strip()
+            name = name_element.text.strip()
+            municipality_link = "https://www.volby.cz/pls/ps2017nss/" + x.a["href"]
+            municipality_data.append((code, name, municipality_link))
+
+    print(f"Nalezeno {len(municipality_data)} obcí:")
+    return municipality_data
 
 # Získáme výsledky voleb pro každou obec
-
-def get_data(municipality_link):
-    response = get(municipality_link)
+def get_data(code, name, link):
+    response = requests.get(link)
     divided_html = BeautifulSoup(response.text, "html.parser")
 
-    # extrakce základních informací
-    code_element = divided_html.row.find('td', {'headers': 't1sa1 t1sb1'})
-    location_element = divided_html.find('td', {'headers': 't1sa1 t1sb2'})
-    registered_element = divided_html.find('td', {'headers': 'sa2'})
-    envelopes_element = divided_html.find('td', {'headers': 'sa3'})
-    valid_votes_element = divided_html.find('td', {'headers': 'sa6'})
-
+    # Extrakce základních informací
+    """ 
+    code_element = divided_html.find("td", class_="cislo")
     code = code_element.text.strip() if code_element else "N/A"
-    location = location_element.text.strip() if location_element else "N/A"
-    registered = registered_element.text.replace('\xa0', '').strip() if registered_element else "N/A"
-    envelopes = envelopes_element.text.replace('\xa0', '').strip() if envelopes_element else "N/A"
-    valid_votes = valid_votes_element.text.replace('\xa0', '').strip() if valid_votes_element else "N/A"
-    
-    # extrakce hlasů pro jednotlivé strany
-    candidate_parties = [party.text.strip() for party in divided_html.find_all('td', {'headers': 't1sa1 t1sb2 t1sc2'})]
-    votes = [vote.text.replace('\xa0', '').strip() for vote in divided_html.find_all('td', {'headers': 't1sa2 t1sb3 t1sc3'})]
+
+    name_element = divided_html.find("td", class_="overflow_name")
+    name = name_element.text.strip() if name_element else "N/A" 
+    """ 
+
+    registered_element = divided_html.find("td", {"class": "cislo", "headers": "sa2"})
+    registered = registered_element.text.replace("\xa0", "").strip() if registered_element else "N/A"
+
+    envelopes_element = divided_html.find("td", {"class": "cislo", "headers": "sa3"})
+    envelopes = envelopes_element.text.replace("\xa0", "").strip() if envelopes_element else "N/A"
+
+    valid_votes_element = divided_html.find("td", {"class": "cislo", "headers": "sa6"})
+    valid_votes = valid_votes_element.text.replace("\xa0", "").strip() if valid_votes_element else "N/A"
+
+    # Extrakce hlasů pro jednotlivé strany
+    candidate_parties = []
+    votes = []
+
+    for headers in ["t1sa1 t1sb2", "t2sa1 t2sb2", "t3sa1 t3sb2"]:
+        candidate_parties.extend([party.text.strip() for party in divided_html.find_all("td", {"headers": headers})])
+
+    for headers in ["t1sa2 t1sb3", "t2sa2 t2sb3", "t3sa2 t3sb3"]:
+        votes.extend([vote.text.replace("\xa0", "").strip() for vote in divided_html.find_all("td", {"headers": headers})])
 
     data = {
         "kód obce": code,
-        "název obce": location,
+        "název obce": name,
         "voliči v seznamu": registered,
         "vydané obálky": envelopes,
-        "platné hlasy": valid_votes,  
-    } 
-    
+        "platné hlasy": valid_votes,
+    }
+
+    # Přidání hlasů pro každou stranu
     for party, vote in zip(candidate_parties, votes):
         data[party] = vote
-    
-    print(f"Získána data pro obec: {location}")
+
+    print(f"Získána data pro obec: {name}")
     return data
 
 # Hlavní funkce
-def main(region_link, output):
-    "region_links = get_region_links(region_link)"
+def main(link, output):
+    municipality_list = get_municipality_links(link)
     all_data = []
 
-    "for region_link in region_links:"
-    municipality_links = get_municipality_links(region_link)
-    for municipality_link in municipality_links:
-        municipality_data = get_data(municipality_link)
+    for code, name, municipality_link in municipality_list:
+        municipality_data = get_data(code, name, municipality_link)
         if municipality_data is not None:
             all_data.append(municipality_data)
 
+    # Vytvoření DataFrame
+
     df = pd.DataFrame(all_data)
     print(df.head())
+
+    # Uložení dat 
+
     df.to_csv(output, index=False, encoding='utf-8')
-    print(f" Data uložena do souboru: {output}")
+    print(f"Data uložena do souboru: {output}")
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
-        print("Použití: python projekt_3.py <URL> <vystupni_soubor>")
+        print("Použití: python3 projekt_3.py <URL> <vystupni_soubor>")
         sys.exit(1)
 
-    region_link = sys.argv[1]
+    link = sys.argv[1]
     output = sys.argv[2]
 
-    if not region_link.startswith("https://www.volby.cz/pls/ps2017nss"):
+    if not link.startswith("https://www.volby.cz/pls/ps2017nss"):
         print("Nesprávný odkaz na územní celek.")
         sys.exit(1)
 
-main(region_link, output)
+    main(link, output)
